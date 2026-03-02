@@ -1,21 +1,16 @@
 import { motion } from "framer-motion";
-import { useState } from "react";
-
-interface GalleryItem {
-  src: string;
-  title: string;
-  medium?: string;
-}
+import { useNavigate } from "react-router-dom";
+import type { Artwork } from "@/data/artworks";
 
 interface GallerySectionProps {
   id: string;
   title: string;
   subtitle: string;
-  items: GalleryItem[];
+  items: Artwork[];
 }
 
 const GallerySection = ({ id, title, subtitle, items }: GallerySectionProps) => {
-  const [selectedImage, setSelectedImage] = useState<GalleryItem | null>(null);
+  const navigate = useNavigate();
 
   return (
     <section id={id} className="py-24 px-6 md:px-12 lg:px-20">
@@ -44,7 +39,7 @@ const GallerySection = ({ id, title, subtitle, items }: GallerySectionProps) => 
             transition={{ duration: 0.6, delay: i * 0.1 }}
             viewport={{ once: true }}
             className="mb-4 break-inside-avoid group cursor-pointer"
-            onClick={() => setSelectedImage(item)}
+            onClick={() => navigate(`/${item.category}/${item.id}`)}
           >
             <div className="relative overflow-hidden rounded-sm">
               <img
@@ -65,32 +60,6 @@ const GallerySection = ({ id, title, subtitle, items }: GallerySectionProps) => 
           </motion.div>
         ))}
       </div>
-
-      {/* Lightbox */}
-      {selectedImage && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 bg-background/95 flex items-center justify-center p-6 cursor-pointer"
-          onClick={() => setSelectedImage(null)}
-        >
-          <motion.img
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ duration: 0.3 }}
-            src={selectedImage.src}
-            alt={selectedImage.title}
-            className="max-w-full max-h-[85vh] object-contain rounded-sm"
-          />
-          <div className="absolute bottom-8 text-center">
-            <h3 className="font-display text-2xl font-bold">{selectedImage.title}</h3>
-            {selectedImage.medium && (
-              <p className="font-body text-muted-foreground mt-1">{selectedImage.medium}</p>
-            )}
-          </div>
-        </motion.div>
-      )}
     </section>
   );
 };
