@@ -8,6 +8,20 @@ import {
   digitalIllustrations,
 } from "@/data/artworks";
 
+const getFeaturedTitle = () => {
+  if (typeof window === "undefined") return "Selected Works";
+  try {
+    const raw = window.localStorage.getItem("portfolio-config-v1");
+    if (!raw) return "Selected Works";
+    const parsed = JSON.parse(raw) as {
+      coreSubsectionTitles?: { digital?: string };
+    };
+    return parsed.coreSubsectionTitles?.digital ?? "Selected Works";
+  } catch {
+    return "Selected Works";
+  }
+};
+
 const DigitalPage = () => {
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -41,7 +55,7 @@ const DigitalPage = () => {
       >
         <GallerySection
           id="digital-3d"
-          title="3D Models"
+          title={getFeaturedTitle()}
           subtitle="Digital sculpts and rendered forms in progress. More work coming soon."
           items={digitalModels}
         />

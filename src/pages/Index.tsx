@@ -22,11 +22,15 @@ const sectionLabelNames: Record<SectionKey, string> = {
   digital: "Section 3 Name",
 };
 
+type MediaSourceType = "url" | "upload";
+
 type MediaEntry = {
   id: string;
   title: string;
   url: string;
   description: string;
+  sourceType: MediaSourceType;
+  mimeType?: string;
 };
 
 type CustomSubsection = {
@@ -38,10 +42,16 @@ type CustomSubsection = {
 
 interface PortfolioConfig {
   subsections: CustomSubsection[];
+  coreSubsectionTitles?: Record<SectionKey, string>;
 }
 
 const defaultConfig: PortfolioConfig = {
   subsections: [],
+  coreSubsectionTitles: {
+    costume: "Selected Works",
+    sculpture: "Selected Works",
+    digital: "Selected Works",
+  },
 };
 
 const createId = (prefix: string) =>
@@ -72,7 +82,14 @@ const Index = () => {
       if (!stored) return defaultConfig;
       const parsed = JSON.parse(stored) as PortfolioConfig;
       if (!parsed.subsections) return defaultConfig;
-      return { ...defaultConfig, ...parsed };
+      return {
+        ...defaultConfig,
+        ...parsed,
+        coreSubsectionTitles: {
+          ...defaultConfig.coreSubsectionTitles,
+          ...(parsed.coreSubsectionTitles ?? {}),
+        },
+      };
     } catch {
       return defaultConfig;
     }
@@ -87,6 +104,7 @@ const Index = () => {
   const [mediaTitle, setMediaTitle] = useState("");
   const [mediaUrl, setMediaUrl] = useState("");
   const [mediaDescription, setMediaDescription] = useState("");
+  const [mediaFile, setMediaFile] = useState<File | null>(null);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -160,25 +178,64 @@ const Index = () => {
   };
 
   const handleAddMedia = () => {
-    const url = mediaUrl.trim();
-    if (!url || !mediaSubsectionId) return;
-    const entry: MediaEntry = {
-      id: createId("media"),
-      title: mediaTitle.trim(),
-      url,
-      description: mediaDescription.trim(),
-    };
-    setConfig((prev) => ({
-      ...prev,
-      subsections: prev.subsections.map((sub) =>
-        sub.id === mediaSubsectionId
-          ? { ...sub, media: [...sub.media, entry] }
-          : sub
-      ),
-    }));
+    if (!mediaSubsectionId) return;
+
+    const title = mediaTitle.trim();
+    const description = mediaDescription.trim();
+
+    // If a file is selected, prefer that over the URL
+    if (mediaFile) {
+      if (mediaFile.size > 5 * 1024 * 1024) {
+        window.alert("Please choose a file smaller than 5MB for this portfolio.");
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = () => {
+        const dataUrl = reader.result as string;
+        const entry: MediaEntry = {
+          id: createId("media"),
+          title: title || mediaFile.name,
+          url: dataUrl,
+          description,
+          sourceType: "upload",
+          mimeType: mediaFile.type,
+        };
+        setConfig((prev) => ({
+          ...prev,
+          subsections: prev.subsections.map((sub) =>
+            sub.id === mediaSubsectionId
+              ? { ...sub, media: [...sub.media, entry] }
+              : sub
+          ),
+        }));
+      };
+      reader.readAsDataURL(mediaFile);
+    } else {
+      const url = mediaUrl.trim();
+      if (!url) return;
+      const entry: MediaEntry = {
+        id: createId("media"),
+        title,
+        url,
+        description,
+        sourceType: "url",
+      };
+      setConfig((prev) => ({
+        ...prev,
+        subsections: prev.subsections.map((sub) =>
+          sub.id === mediaSubsectionId
+            ? { ...sub, media: [...sub.media, entry] }
+            : sub
+        ),
+      }));
+    }
+
+    // Reset inputs
     setMediaTitle("");
     setMediaUrl("");
     setMediaDescription("");
+    setMediaFile(null);
   };
 
   const renderCustomSubsections = (section: SectionKey) =>
@@ -194,7 +251,9 @@ const Index = () => {
           </h3>
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {sub.media.map((item) => {
-              const isVideo = /\.(mp4|webm|ogg)$/i.test(item.url);
+              const isVideo =
+                item.mimeType?.startsWith("video/") ||
+                /\.(mp4|webm|ogg)$/i.test(item.url);
               return (
                 <article
                   key={item.id}
@@ -236,6 +295,34 @@ const Index = () => {
         </section>
       ));
 
+  const updateCoreSubsectionTitle = (section: SectionKey, value: string) => {
+    setConfig((prev) => ({
+      ...prev,
+      coreSubsectionTitles: {
+        ...(prev.coreSubsectionTitles ?? defaultConfig.coreSubsectionTitles!),
+        [section]: value,
+      },
+    }));
+  };
+
+  const getCoreSubsectionTitle = (section: SectionKey) =>
+    config.coreSubsectionTitles?.[section] ??
+    defaultConfig.coreSubsectionTitles?.[section] ??
+    "Selected Works";
+
+const getBaseMediaCount = (section: SectionKey) => {
+  switch (section) {
+    case "costume":
+      return costumeArtworks.length;
+    case "sculpture":
+      return sculptureArtworks.length;
+    case "digital":
+      return digitalArtworks.length;
+    default:
+      return 0;
+  }
+};
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* Navigation */}
@@ -253,19 +340,19 @@ const Index = () => {
             href="#costume"
             className="font-body text-sm tracking-widest uppercase text-muted-foreground hover:text-primary transition-colors"
           >
-            Costume
+            {sectionTitles.costume}
           </a>
           <a
             href="#sculpture"
             className="font-body text-sm tracking-widest uppercase text-muted-foreground hover:text-primary transition-colors"
           >
-            Sculpture
+            {sectionTitles.sculpture}
           </a>
           <a
             href="#digital"
             className="font-body text-sm tracking-widest uppercase text-muted-foreground hover:text-primary transition-colors"
           >
-            Digital
+            {sectionTitles.digital}
           </a>
           <a
             href="#contact"
@@ -303,7 +390,7 @@ const Index = () => {
       {/* Gallery Sections */}
       <GallerySection
         id="costume"
-        title={sectionTitles.costume}
+        title={getCoreSubsectionTitle("costume")}
         subtitle="Wearable pieces that merge sculpture and fashion to build character and story."
         items={costumeArtworks}
       />
@@ -319,7 +406,7 @@ const Index = () => {
 
       <GallerySection
         id="sculpture"
-        title={sectionTitles.sculpture}
+        title={getCoreSubsectionTitle("sculpture")}
         subtitle="Standalone physical works that explore structure, weight, and material presence."
         items={sculptureArtworks}
       />
@@ -335,7 +422,7 @@ const Index = () => {
 
       <GallerySection
         id="digital"
-        title={sectionTitles.digital}
+        title={getCoreSubsectionTitle("digital")}
         subtitle="Exploring limitless worlds through pixels, light, and imagination."
         items={digitalArtworks}
       />
@@ -451,6 +538,18 @@ const Index = () => {
                 onChange={(e) => updateSectionTitle(key, e.target.value)}
                 className="w-full bg-background border border-border px-2 py-1 text-xs font-body focus:outline-none focus:ring-1 focus:ring-primary"
               />
+              <label className="block font-body text-[11px] uppercase tracking-[0.2em] text-muted-foreground mt-2 mb-1">
+                {sectionLabelNames[key]} – Featured Subsection
+              </label>
+              <input
+                type="text"
+                value={getCoreSubsectionTitle(key)}
+                onChange={(e) => updateCoreSubsectionTitle(key, e.target.value)}
+                className="w-full bg-background border border-border px-2 py-1 text-xs font-body focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+              <p className="mt-1 font-body text-[10px] text-muted-foreground">
+                Built-in media in this subsection: {getBaseMediaCount(key)}
+              </p>
             </div>
           ))}
 
@@ -524,6 +623,15 @@ const Index = () => {
               className="w-full bg-background border border-border px-2 py-1 text-xs font-body mb-2 focus:outline-none focus:ring-1 focus:ring-primary"
             />
             <input
+              type="file"
+              accept="image/*,video/*"
+              onChange={(e) => {
+                const file = e.target.files?.[0] || null;
+                setMediaFile(file);
+              }}
+              className="w-full text-[11px] mb-2 file:mr-2 file:py-1 file:px-2 file:border file:border-border file:bg-background file:text-[11px] file:uppercase file:tracking-[0.15em] file:font-body"
+            />
+            <input
               type="text"
               placeholder="Media URL (image, gif, or mp4)"
               value={mediaUrl}
@@ -540,7 +648,7 @@ const Index = () => {
               type="button"
               onClick={handleAddMedia}
               className="w-full px-2 py-1 text-[10px] font-body uppercase tracking-[0.2em] border border-primary text-primary hover:bg-primary hover:text-primary-foreground disabled:opacity-50"
-              disabled={!mediaUrl.trim() || !mediaSubsectionId}
+              disabled={(!mediaUrl.trim() && !mediaFile) || !mediaSubsectionId}
             >
               Save Media
             </button>

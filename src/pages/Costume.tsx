@@ -3,6 +3,20 @@ import { Link } from "react-router-dom";
 import GallerySection from "@/components/GallerySection";
 import { costumeArtworks } from "@/data/artworks";
 
+const getFeaturedTitle = () => {
+  if (typeof window === "undefined") return "Selected Works";
+  try {
+    const raw = window.localStorage.getItem("portfolio-config-v1");
+    if (!raw) return "Selected Works";
+    const parsed = JSON.parse(raw) as {
+      coreSubsectionTitles?: { costume?: string };
+    };
+    return parsed.coreSubsectionTitles?.costume ?? "Selected Works";
+  } catch {
+    return "Selected Works";
+  }
+};
+
 const CostumePage = () => {
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -33,7 +47,7 @@ const CostumePage = () => {
       >
         <GallerySection
           id="costume-gallery"
-          title="Selected Works"
+          title={getFeaturedTitle()}
           subtitle="Wearable pieces that explore silhouette, movement, and character through material."
           items={costumeArtworks}
         />
