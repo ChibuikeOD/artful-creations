@@ -5,8 +5,8 @@ import { componentTagger } from "lovable-tagger";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
-  // GitHub Pages base path for https://<user>.github.io/artful-creations/
-  base: "/artful-creations/",
+  // For Vercel deployment, use root base ("/")
+  base: "/",
   server: {
     host: "::",
     port: 8080,
